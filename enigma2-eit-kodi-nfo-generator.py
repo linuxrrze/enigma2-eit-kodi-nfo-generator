@@ -324,24 +324,36 @@ class EitList():
                     prev1_ISO_639_language_code = "x"
                     prev2_ISO_639_language_code = "x"
                     while pos < endpos:
-                        rec = data[pos]
+                        rec = descriptor_tag = data[pos]
+                        descriptor_length = data[pos+1]
+                        print("DEBUG: 0x%02x found" % rec)
+                        print("DEBUG: 0x%02x - descriptor_tag: 0x%02x" % (rec, descriptor_tag))
+                        print("DEBUG: 0x%02x - descriptor_length: %2d" % (rec, descriptor_length))
                         if pos + 1 >= endpos:
                             break
                         length = data[pos+1] + 2
                         # 0x4D = 'short_event_descriptor'
                         # details s. "6.2.37 Short event descriptor"
                         if rec == 0x4D:
-                            print("DEBUG: 0x%02x found" % rec)
-                            descriptor_tag = data[pos+1]
-                            descriptor_length = data[pos+2]
-                            print("DEBUG: 0x4D - %02d descriptor length: 0x%02x" % (length, descriptor_length))
-                            print("DEBUG: 0x4D - length: 0x%02x" % length)
+                            print("DEBUG: 0x%02x - Short event descriptor" % rec)
                             ISO_639_language_code = str(data[pos+2:pos+5]).upper()
+                            print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
                             event_name_length = data[pos+5]
+                            print("DEBUG: 0x%02x - event_name_length: (%d)'" % (rec, event_name_length))
+                            text_length = data[pos+6+event_name_length]
+                            print("DEBUG: 0x%02x - text_length: (%d)'" % (rec, text_length))
+                            name_event_description = ""
+
+                            # read 'event_name_char':
+                            # FIXME: First char is unprintable \0x15 - why?
+                            #name_event_description = str(data[pos+6:pos+6+event_name_length])
+                            name_event_description = str(data[pos+7:pos+6+event_name_length])
+                            print("DEBUG: 0x%02x - event_name_char: <'%s'>(%d)'" % (rec, name_event_description, len(name_event_description)))
                             name_event_description = ""
                             for i in range(pos+6, pos+6+event_name_length):
                                 if str(data[i]) == "10" or int(str(data[i])) > 31:
                                     name_event_description += chr(data[i])
+                            print("DEBUG: 0x%02x - event_name_char: '%s'(%d)'" % (rec, name_event_description, len(name_event_description)))
                             if not name_event_codepage:
                                 try:
                                     byte1 = str(data[pos+6])
@@ -351,7 +363,7 @@ class EitList():
                                     else:
                                         byte1 = ''
                                 if name_event_codepage:
-                                    print(("DEBUG: [META] Found name_event encoding-type: " + name_event_codepage))
+                                    print("DEBUG: 0x%02x - [META] Found name_event encoding-type: %s" % (rec, name_event_codepage))
                             short_event_description = ""
                             if not short_event_codepage:
                                 try:
@@ -362,10 +374,19 @@ class EitList():
                                     else:
                                         byte1 = ''
                                 if short_event_codepage:
-                                    print(("DEBUG: [META] Found short_event encoding-type: " + short_event_codepage))
-                            for i in range(pos+7+event_name_length, pos+length):
+                                    print("DEBUG: 0x%02x - [META] Found short_event encoding-type: %s" % (rec, short_event_codepage))
+                            #for i in range(pos+7+event_name_length, pos+length):
+
+                            # read 'text_char':
+                            # FIXME: First char is unprintable \0x05 - why?
+                            #name_event_description = str(data[pos+7+event_name_length, pos+7+event_name_length+text_length])
+                            short_event_description = str(data[pos+8+event_name_length:pos+7+event_name_length+text_length])
+                            print("DEBUG: 0x%02x - event_text_char: <'%s'>(%d)'" % (rec, short_event_description, len(short_event_description)))
+                            short_event_description = ""
+                            for i in range(pos+7+event_name_length, pos+7+event_name_length+text_length):
                                 if str(data[i]) == "10" or int(str(data[i])) > 31:
                                     short_event_description += chr(data[i])
+                            print("DEBUG: 0x%02x - text_char: '%s'(%d)'" % (rec, short_event_description, len(short_event_description)))
                             if ISO_639_language_code == lang:
                                 short_event_descriptor.append(short_event_description)
                                 name_event_descriptor.append(name_event_description)
@@ -379,11 +400,9 @@ class EitList():
                         # 0x4E = 'extended_event_descriptor'
                         # details s. "6.2.15 Extended event descriptor"
                         elif rec == 0x4E:
-                            print("DEBUG: 0x%02x found" % rec)
-                            ISO_639_language_code = ""
-                            for i in range(pos+3, pos+6):
-                                ISO_639_language_code += chr(data[i])
-                            ISO_639_language_code = ISO_639_language_code.upper()
+                            print("DEBUG: 0x%02x - Extended event descriptor" % rec)
+                            ISO_639_language_code = str(data[pos+3:pos+6]).upper()
+                            print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
                             extended_event_description = ""
                             if not extended_event_codepage:
                                 try:
@@ -394,7 +413,7 @@ class EitList():
                                     else:
                                         byte1 = ''
                                 if extended_event_codepage:
-                                    print(("[META] Found extended_event encoding-type: " + extended_event_codepage))
+                                    print("DEBUG: %0x02x - [META] Found extended_event encoding-type: %s" % (rec, extended_event_codepage))
                             for i in range(pos+8, pos+length):
                                 if str(data[i]) == "10" or int(str(data[i])) > 31:
                                     extended_event_description += chr(data[i])
@@ -408,43 +427,39 @@ class EitList():
                         # 0x50 = 'component_descriptor' 
                         # details s. "6.2.8 Component descriptor"
                         elif rec == 0x50:
-                            print("DEBUG: 0x%02x found" % rec)
-                            ISO_639_language_code = ""
-                            for i in range(pos+5, pos+8):
-                                ISO_639_language_code += chr(data[i])
-                            ISO_639_language_code = ISO_639_language_code.upper()
-                            print(ISO_639_language_code)
-                            print(data[pos+8:pos+length])
+                            print("DEBUG: 0x%02x - Component descriptor" % rec)
+                            ISO_639_language_code = str(data[pos+5:pos+8]).upper()
+                            print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
+                            print("DEBUG: 0x%02x - '%s'" % (rec, data[pos+8:pos+length]))
+                            text_char = data[pos+8:pos+length]
+                            print("DEBUG: 0x%02x - text_char: '%s'(%d)'" % (rec, text_char, len(text_char)))
                             component_descriptor.append(data[pos+8:pos+length])
                         # 0x54 = 'content_descriptor '
                         # details s. "6.2.9 Content descriptor"
                         elif rec == 0x54:
-                            print("DEBUG: 0x%02x found" % rec)
-                            descriptor_tag = data[pos+1]
-                            descriptor_length = data[pos+2]
-                            print("DEBUG: 0x54 - descriptor length: 0x%02x" % descriptor_length)
-                            print("DEBUG: 0x54 - length: 0x%02x" % length)
-                            print("DEBUG: 0x54 - len(data): 0x%04x" % (len(data)-pos))
+                            print("DEBUG: 0x%02x - Content descriptor" % rec)
+                            print("DEBUG: 0x%02x - len(data): 0x%04x" % (rec, len(data)-pos))
                             #for i in range(0, (length-2) << 1):
                             #    print("DEBUG: %02x" % data[pos+3+i])
-                            print("DEBUG: 0x54 - 0x%01x 0x%01x 0x%02x" % (data[pos + 2] >> 4, data[pos + 2] & 0xf, data[pos + 3]));
-
+                            print("DEBUG: 0x%02x - 0x%01x 0x%01x 0x%02x" % (rec, data[pos + 2] >> 4, data[pos + 2] & 0xf, data[pos + 3]));
                             content_descriptor.append(data[pos+8:pos+length])
                         # 0x4A = 'linkage_descriptor '
+                        # details s. "6.2.19 Linkage descriptor"
                         elif rec == 0x4A:
-                            print("DEBUG: 0x%02x found" % rec)
+                            print("DEBUG: 0x%02x - Linkage descriptor" % rec)
                             linkage_descriptor.append(data[pos+8:pos+length])
                         # 0x55 = 'parental_rating_descriptor '
+                        # details s. "6.2.28 Parental rating descriptor"
                         elif rec == 0x55:
-                            print("DEBUG: 0x%02x found" % rec)
+                            print("DEBUG: 0x%02x - Parental rating descriptor" % rec)
                             parental_rating_descriptor.append(data[pos+2:pos+length])
                         # 0x69 = 'PDC_descriptor'
+                        # details s. "6.2.30 PDC descriptor"
                         elif rec == 0x69:
-                            print("DEBUG: 0x%02x found" % rec)
+                            print("DEBUG: 0x%02x - PDC descriptor" % rec)
                             pdc_descriptor.append(data[pos+2:pos+length])
                         else:
-                            print("DEBUG: 0x%02x found" % rec)
-                            print("unsupported descriptor: 0x%02x 0x%04x" %(rec, pos + 12))
+                            print("DEBUG: 0x%02x - Unknown descriptor" % rec)
                             print(data[pos:pos+length])
                             pass
                         pos += length
