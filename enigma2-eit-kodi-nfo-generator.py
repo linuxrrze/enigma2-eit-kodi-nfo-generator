@@ -437,6 +437,13 @@ class EitList():
                         # details s. "6.2.8 Component descriptor"
                         elif rec == 0x50:
                             print("DEBUG: 0x%02x - Component descriptor" % rec)
+                            stream_content = data[pos+2]
+                            stream_content_ext = stream_content >> 4;
+                            stream_content = stream_content & 0xf;
+                            print("DEBUG: 0x%02x - stream_content/_ext 0x%01x/0x%01x" % (rec, stream_content, stream_content_ext))
+                            component_type = data[pos+3]
+                            component_tag = data[pos+4]
+                            print("DEBUG: 0x%02x - component type/tag 0x%02x/0x%02x" % (rec, component_type, component_tag))
                             ISO_639_language_code = str(data[pos+5:pos+8]).upper()
                             print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
                             print("DEBUG: 0x%02x - '%s'" % (rec, data[pos+8:pos+length]))
@@ -447,15 +454,23 @@ class EitList():
                         # details s. "6.2.9 Content descriptor"
                         elif rec == 0x54:
                             print("DEBUG: 0x%02x - Content descriptor" % rec)
-                            print("DEBUG: 0x%02x - len(data): 0x%04x" % (rec, len(data)-pos))
-                            #for i in range(0, (length-2) << 1):
-                            #    print("DEBUG: %02x" % data[pos+3+i])
-                            print("DEBUG: 0x%02x - 0x%01x 0x%01x 0x%02x" % (rec, data[pos + 2] >> 4, data[pos + 2] & 0xf, data[pos + 3]));
+                            for i in range(0, descriptor_length >> 1):
+                                content_nibble_level_1 = data[pos+2+i*2]
+                                content_nibble_level_2 = content_nibble_level_1 & 0xf;
+                                content_nibble_level_1 = content_nibble_level_1 >> 4;
+                                user_byte = data[pos+2+i*2+1]
+                            print("DEBUG: 0x%02x - content_nibble_level_1/2 0x%01x 0x%01x user_byte 0x%02x" % (rec, content_nibble_level_1, content_nibble_level_2, user_byte))
                             content_descriptor.append(data[pos+8:pos+length])
                         # 0x4A = 'linkage_descriptor '
                         # details s. "6.2.19 Linkage descriptor"
                         elif rec == 0x4A:
                             print("DEBUG: 0x%02x - Linkage descriptor" % rec)
+                            # FIXME: No test data - maybe low/big endian?
+                            transport_stream_id = (data[pos+2] << 8) + data[pos+3]
+                            original_network_id = (data[pos+4] << 8) + data[pos+5]
+                            service_id = (data[pos+6] << 8) + data[pos+7]
+                            print("DEBUG: 0x%02x - transport/original/service_id 0x%04x 0x%04x 0x%04x" % (rec, transport_stream_id, original_network_id, service_id))
+                            linkage_type = data[pos+8]
                             linkage_descriptor.append(data[pos+8:pos+length])
                         # 0x55 = 'parental_rating_descriptor '
                         # details s. "6.2.28 Parental rating descriptor"
@@ -466,6 +481,7 @@ class EitList():
                         # details s. "6.2.30 PDC descriptor"
                         elif rec == 0x69:
                             print("DEBUG: 0x%02x - PDC descriptor" % rec)
+                            # FIXME: No test data
                             pdc_descriptor.append(data[pos+2:pos+length])
                         else:
                             print("DEBUG: 0x%02x - Unknown descriptor" % rec)
