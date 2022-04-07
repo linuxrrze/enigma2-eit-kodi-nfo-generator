@@ -35,6 +35,20 @@ from datetime import datetime
 from pprint import pprint
 from inspect import getmembers
 
+encoding_map = {
+    "1": 'iso-8859-5',
+    "2": 'iso-8859-6',
+    "3": 'iso-8859-7',
+    "4": 'iso-8859-8',
+    "5": 'iso-8859-9',
+    "6": 'iso-8859-10',
+    "7": 'iso-8859-11',
+    "9": 'iso-8859-13',
+    "10": 'iso-8859-14',
+    "11": 'iso-8859-15',
+    "21": 'utf-8'
+}
+
 def dump(obj):
   '''return a printable representation of an object for debugging'''
   newobj=obj
@@ -293,18 +307,10 @@ class EitList():
 								try:
 									byte1 = str(data[pos+6])
 								except:
-									byte1 = ''
-								if byte1=="1": name_event_codepage = 'iso-8859-5'
-								elif byte1=="2": name_event_codepage = 'iso-8859-6'
-								elif byte1=="3": name_event_codepage = 'iso-8859-7'
-								elif byte1=="4": name_event_codepage = 'iso-8859-8'
-								elif byte1=="5": name_event_codepage = 'iso-8859-9'
-								elif byte1=="6": name_event_codepage = 'iso-8859-10'
-								elif byte1=="7": name_event_codepage = 'iso-8859-11'
-								elif byte1=="9": name_event_codepage = 'iso-8859-13'
-								elif byte1=="10": name_event_codepage = 'iso-8859-14'
-								elif byte1=="11": name_event_codepage = 'iso-8859-15'
-								elif byte1=="21": name_event_codepage = 'utf-8'
+                                                                        if byte1 in encoding_map:
+                                                                            name_event_codepage = encoding_map[byte1];
+                                                                        else:
+                                                                            byte1 = ''
 								if name_event_codepage:
 									print(("[META] Found name_event encoding-type: " + name_event_codepage))
 							short_event_description = ""
@@ -312,18 +318,10 @@ class EitList():
 								try:
 									byte1 = str(data[pos+7+event_name_length])
 								except:
-									byte1 = ''
-								if byte1=="1": short_event_codepage = 'iso-8859-5'
-								elif byte1=="2": short_event_codepage = 'iso-8859-6'
-								elif byte1=="3": short_event_codepage = 'iso-8859-7'
-								elif byte1=="4": short_event_codepage = 'iso-8859-8'
-								elif byte1=="5": short_event_codepage = 'iso-8859-9'
-								elif byte1=="6": short_event_codepage = 'iso-8859-10'
-								elif byte1=="7": short_event_codepage = 'iso-8859-11'
-								elif byte1=="9": short_event_codepage = 'iso-8859-13'
-								elif byte1=="10": short_event_codepage = 'iso-8859-14'
-								elif byte1=="11": short_event_codepage = 'iso-8859-15'
-								elif byte1=="21": short_event_codepage = 'utf-8'
+                                                                        if byte1 in encoding_map:
+                                                                            name_event_codepage = encoding_map[byte1];
+                                                                        else:
+                                                                            byte1 = ''
 								if short_event_codepage:
 									print(("[META] Found short_event encoding-type: " + short_event_codepage))
 							for i in range (pos+7+event_name_length,pos+length):
@@ -349,18 +347,10 @@ class EitList():
 								try:
 									byte1 = str(data[pos+8])
 								except:
-									byte1 = ''
-								if byte1=="1": extended_event_codepage = 'iso-8859-5'
-								elif byte1=="2": extended_event_codepage = 'iso-8859-6'
-								elif byte1=="3": extended_event_codepage = 'iso-8859-7'
-								elif byte1=="4": extended_event_codepage = 'iso-8859-8'
-								elif byte1=="5": extended_event_codepage = 'iso-8859-9'
-								elif byte1=="6": extended_event_codepage = 'iso-8859-10'
-								elif byte1=="7": extended_event_codepage = 'iso-8859-11'
-								elif byte1=="9": extended_event_codepage = 'iso-8859-13'
-								elif byte1=="10": extended_event_codepage = 'iso-8859-14'
-								elif byte1=="11": extended_event_codepage = 'iso-8859-15'
-								elif byte1=="21": extended_event_codepage = 'utf-8'
+                                                                        if byte1 in encoding_map:
+                                                                            name_event_codepage = encoding_map[byte1];
+                                                                        else:
+                                                                            byte1 = ''
 								if extended_event_codepage:
 									print(("[META] Found extended_event encoding-type: " + extended_event_codepage))
 							for i in range (pos+8,pos+length):
@@ -412,12 +402,12 @@ class EitList():
 								if name_event_codepage != 'utf-8':
 									name_event_descriptor = bytes(name_event_descriptor, 'utf-8').decode(name_event_codepage)
 							else:
-								encdata = chardet.detect(bytes(name_event_descriptor, utf-8))
+								encdata = chardet.detect(bytes(name_event_descriptor, 'utf-8'))
 								enc = encdata['encoding'].lower()
 								confidence = str(encdata['confidence'])
 								print(("[META] Detected name_event encoding-type: " + enc + " (" + confidence + ")"))
 								if enc != "utf-8":
-									name_event_descriptor = bytes(name_event_descriptor, 'uts-8').decode(enc)
+									name_event_descriptor = bytes(name_event_descriptor, 'utf-8').decode(enc)
 						except (UnicodeDecodeError, AttributeError) as e:
 							print(("[META] Exception in readEitFile: " + str(e)))
 					self.eit['name'] = name_event_descriptor
@@ -434,7 +424,7 @@ class EitList():
 								confidence = str(encdata['confidence'])
 								print(("[META] Detected short_event encoding-type: " + enc + " (" + confidence + ")"))
 								if enc != "utf-8":
-									short_event_descriptor = bytes(short_event_descriptor, 'uts-8').decode(enc)
+									short_event_descriptor = bytes(short_event_descriptor, 'utf-8').decode(enc)
 						except (UnicodeDecodeError, AttributeError) as e:
 							print(("[META] Exception in readEitFile: " + str(e)))
 					self.eit['short_description'] = short_event_descriptor
