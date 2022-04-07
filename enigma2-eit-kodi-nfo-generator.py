@@ -403,6 +403,10 @@ class EitList():
                             print("DEBUG: 0x%02x - Extended event descriptor" % rec)
                             ISO_639_language_code = str(data[pos+3:pos+6]).upper()
                             print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
+                            length_of_items = data[pos+6]
+                            print("DEBUG: 0x%02x - length_of_items: (%d)'" % (rec, length_of_items))
+                            text_length = data[pos+7+length_of_items]
+                            print("DEBUG: 0x%02x - text_length: (%d)'" % (rec, text_length))
                             extended_event_description = ""
                             if not extended_event_codepage:
                                 try:
@@ -414,6 +418,11 @@ class EitList():
                                         byte1 = ''
                                 if extended_event_codepage:
                                     print("DEBUG: %0x02x - [META] Found extended_event encoding-type: %s" % (rec, extended_event_codepage))
+                            # FIXME: First char is unprintable  - why?
+                            #extended_event_description = str(data[pos+8:pos+8+text_length])
+                            extended_event_description = str(data[pos+9:pos+8+text_length])
+                            print("DEBUG: 0x%02x - extended_event_description: <'%s'>(%d)'" % (rec, extended_event_description, len(extended_event_description)))
+                            extended_event_description = ""
                             for i in range(pos+8, pos+length):
                                 if str(data[i]) == "10" or int(str(data[i])) > 31:
                                     extended_event_description += chr(data[i])
