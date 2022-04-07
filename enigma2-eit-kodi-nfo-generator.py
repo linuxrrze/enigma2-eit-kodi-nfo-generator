@@ -278,7 +278,7 @@ class EitList():
                     # lines = f.readlines()
                     data = f.read()
                 except Exception as e:
-                    print(("[META] Exception in readEitFile: " + str(e)))
+                    print(("DEBUG: [META] Exception in readEitFile: " + str(e)))
                 finally:
                     if f is not None:
                         f.close()
@@ -319,6 +319,7 @@ class EitList():
                     content_descriptor = []
                     linkage_descriptor = []
                     parental_rating_descriptor = []
+                    pdc_descriptor = []
                     endpos = len(data) - 1
                     prev1_ISO_639_language_code = "x"
                     prev2_ISO_639_language_code = "x"
@@ -328,9 +329,13 @@ class EitList():
                             break
                         length = data[pos+1] + 2
                         # 0x4D = 'short_event_descriptor'
+                        # details s. "6.2.37 Short event descriptor"
                         if rec == 0x4D:
+                            print("DEBUG: 0x%02x found" % rec)
                             descriptor_tag = data[pos+1]
                             descriptor_length = data[pos+2]
+                            print("DEBUG: 0x4D - %02d descriptor length: 0x%02x" % (length, descriptor_length))
+                            print("DEBUG: 0x4D - length: 0x%02x" % length)
                             ISO_639_language_code = str(data[pos+2:pos+5]).upper()
                             event_name_length = data[pos+5]
                             name_event_description = ""
@@ -346,7 +351,7 @@ class EitList():
                                     else:
                                         byte1 = ''
                                 if name_event_codepage:
-                                    print(("[META] Found name_event encoding-type: " + name_event_codepage))
+                                    print(("DEBUG: [META] Found name_event encoding-type: " + name_event_codepage))
                             short_event_description = ""
                             if not short_event_codepage:
                                 try:
@@ -357,7 +362,7 @@ class EitList():
                                     else:
                                         byte1 = ''
                                 if short_event_codepage:
-                                    print(("[META] Found short_event encoding-type: " + short_event_codepage))
+                                    print(("DEBUG: [META] Found short_event encoding-type: " + short_event_codepage))
                             for i in range(pos+7+event_name_length, pos+length):
                                 if str(data[i]) == "10" or int(str(data[i])) > 31:
                                     short_event_description += chr(data[i])
@@ -372,7 +377,9 @@ class EitList():
                                 name_event_descriptor_multi.append(" " + name_event_description)
                             prev1_ISO_639_language_code = ISO_639_language_code
                         # 0x4E = 'extended_event_descriptor'
+                        # details s. "6.2.15 Extended event descriptor"
                         elif rec == 0x4E:
+                            print("DEBUG: 0x%02x found" % rec)
                             ISO_639_language_code = ""
                             for i in range(pos+3, pos+6):
                                 ISO_639_language_code += chr(data[i])
@@ -398,17 +405,47 @@ class EitList():
                             else:
                                 extended_event_descriptor_multi.append("\n\n" + extended_event_description)
                             prev2_ISO_639_language_code = ISO_639_language_code
+                        # 0x50 = 'component_descriptor' 
+                        # details s. "6.2.8 Component descriptor"
                         elif rec == 0x50:
+                            print("DEBUG: 0x%02x found" % rec)
+                            ISO_639_language_code = ""
+                            for i in range(pos+5, pos+8):
+                                ISO_639_language_code += chr(data[i])
+                            ISO_639_language_code = ISO_639_language_code.upper()
+                            print(ISO_639_language_code)
+                            print(data[pos+8:pos+length])
                             component_descriptor.append(data[pos+8:pos+length])
+                        # 0x54 = 'content_descriptor '
+                        # details s. "6.2.9 Content descriptor"
                         elif rec == 0x54:
+                            print("DEBUG: 0x%02x found" % rec)
+                            descriptor_tag = data[pos+1]
+                            descriptor_length = data[pos+2]
+                            print("DEBUG: 0x54 - descriptor length: 0x%02x" % descriptor_length)
+                            print("DEBUG: 0x54 - length: 0x%02x" % length)
+                            print("DEBUG: 0x54 - len(data): 0x%04x" % (len(data)-pos))
+                            #for i in range(0, (length-2) << 1):
+                            #    print("DEBUG: %02x" % data[pos+3+i])
+                            print("DEBUG: 0x54 - 0x%01x 0x%01x 0x%02x" % (data[pos + 2] >> 4, data[pos + 2] & 0xf, data[pos + 3]));
+
                             content_descriptor.append(data[pos+8:pos+length])
+                        # 0x4A = 'linkage_descriptor '
                         elif rec == 0x4A:
+                            print("DEBUG: 0x%02x found" % rec)
                             linkage_descriptor.append(data[pos+8:pos+length])
+                        # 0x55 = 'parental_rating_descriptor '
                         elif rec == 0x55:
+                            print("DEBUG: 0x%02x found" % rec)
                             parental_rating_descriptor.append(data[pos+2:pos+length])
+                        # 0x69 = 'PDC_descriptor'
+                        elif rec == 0x69:
+                            print("DEBUG: 0x%02x found" % rec)
+                            pdc_descriptor.append(data[pos+2:pos+length])
                         else:
-                            # print("unsupported descriptor: %x %x" %(rec, pos + 12))
-                            # print(data[pos:pos+length])
+                            print("DEBUG: 0x%02x found" % rec)
+                            print("unsupported descriptor: 0x%02x 0x%04x" %(rec, pos + 12))
+                            print(data[pos:pos+length])
                             pass
                         pos += length
 
@@ -440,11 +477,11 @@ class EitList():
                                 encdata = chardet.detect(bytes(name_event_descriptor, 'utf-8'))
                                 enc = encdata['encoding'].lower()
                                 confidence = str(encdata['confidence'])
-                                print(("[META] Detected name_event encoding-type: " + enc + " (" + confidence + ")"))
+                                print(("DEBUG: [META] Detected name_event encoding-type: " + enc + " (" + confidence + ")"))
                                 if enc != "utf-8":
                                     name_event_descriptor = bytes(name_event_descriptor, 'utf-8').decode(enc)
                         except (UnicodeDecodeError, AttributeError) as e:
-                            print(("[META] Exception in readEitFile: " + str(e)))
+                            print(("DEBUG: [META] Exception in readEitFile: " + str(e)))
                     self.eit['name'] = name_event_descriptor
 
                     if short_event_descriptor:
@@ -457,11 +494,11 @@ class EitList():
                                 encdata = chardet.detect(bytes(short_event_descriptor, 'utf-8'))
                                 enc = encdata['encoding'].lower()
                                 confidence = str(encdata['confidence'])
-                                print(("[META] Detected short_event encoding-type: " + enc + " (" + confidence + ")"))
+                                print(("DEBUG: [META] Detected short_event encoding-type: " + enc + " (" + confidence + ")"))
                                 if enc != "utf-8":
                                     short_event_descriptor = bytes(short_event_descriptor, 'utf-8').decode(enc)
                         except (UnicodeDecodeError, AttributeError) as e:
-                            print(("[META] Exception in readEitFile: " + str(e)))
+                            print(("DEBUG: [META] Exception in readEitFile: " + str(e)))
                     self.eit['short_description'] = short_event_descriptor
 
                     if extended_event_descriptor:
@@ -474,11 +511,11 @@ class EitList():
                                 encdata = chardet.detect(bytes(extended_event_descriptor, 'utf-8'))
                                 enc = encdata['encoding'].lower()
                                 confidence = str(encdata['confidence'])
-                                print(("[META] Detected extended_event encoding-type: " + enc + " (" + confidence + ")"))
+                                print(("DEBUG: [META] Detected extended_event encoding-type: " + enc + " (" + confidence + ")"))
                                 if enc != "utf-8":
                                     extended_event_descriptor = bytes(extended_event_descriptor, 'utf-8').decode(enc)
                         except (UnicodeDecodeError, AttributeError) as e:
-                            print(("[META] Exception in readEitFile: " + str(e)))
+                            print(("DEBUG: [META] Exception in readEitFile: " + str(e)))
 
                         # This will fix EIT data of RTL group with missing line breaks in extended event description
                         extended_event_descriptor = re.sub('((?:Moderat(?:ion:|or(?:in){0,1})|Vorsitz: |Jur(?:isten|y): |G(?:\xC3\xA4|a)st(?:e){0,1}: |Mit (?:Staatsanwalt|Richter(?:in){0,1}|den Schadenregulierern) |Julia Leisch).*?[a-z]+)(\'{0,1}[0-9A-Z\'])', r'\1\n\n\2', extended_event_descriptor)
@@ -527,11 +564,11 @@ def readeit(eitfile):
   <title>{0}</title>
   <plot>{1}</plot>
 </movie>""".format(eitlist.getEitName(), eitlist.getEitDescription())
-    # print(nfo)
+    print(nfo)
     print(nfoname)
 
-    with io.open(nfoname, 'w', encoding='utf8') as f:
-        f.write(make_unicode(nfo))
+    #with io.open(nfoname, 'w', encoding='utf8') as f:
+    #    f.write(make_unicode(nfo))
 
 
 def main():
