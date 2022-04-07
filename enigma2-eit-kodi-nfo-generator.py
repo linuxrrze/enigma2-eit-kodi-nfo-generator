@@ -114,8 +114,8 @@ def language_iso639_2to3(alpha2):
                     return alpha
     return ret
 #TEST
-#print LanguageCodes["sv"]
-#print language_iso639_2to3("sv")
+#print(LanguageCodes["sv"])
+#print(language_iso639_2to3("sv"))
 
 
 # Eit File support class
@@ -217,7 +217,7 @@ class EitList():
 				pass
 
 			else:
-				#print "EMC TEST count Eit " + str(path)
+				#print("EMC TEST count Eit " + str(path))
 
 				# New path or file has changed
 				self.eit_mtime = mtime
@@ -382,8 +382,8 @@ class EitList():
 						elif rec == 0x55:
 							parental_rating_descriptor.append(data[pos+2:pos+length])
 						else:
-#							print "unsupported descriptor: %x %x" %(rec, pos + 12)
-#							print data[pos:pos+length]
+							#print("unsupported descriptor: %x %x" %(rec, pos + 12))
+							#print(data[pos:pos+length])
 							pass
 						pos += length
 
@@ -486,25 +486,25 @@ import getopt
 
 def readeit(eitfile):
     eitlist=EitList(eitfile)
-#    print "\n name: \n";
-#    print eitlist.getEitName();
-#    print "\n start: \n";
-#    print eitlist.getEitStartDate();
-#    print "\n desc: \n";
-#    print eitlist.getEitDescription();
-#    print "\n when: \n";
-#    print eitlist.getEitWhen();
-#    print "\n starttime: \n";
-#    print eitlist.getEitStartTime();
-#    print "\n duration: \n";
-#    print eitlist.getEitDuration();
+#    print("\n name: \n");
+#    print(eitlist.getEitName());
+#    print("\n start: \n");
+#    print(eitlist.getEitStartDate());
+#    print("\n desc: \n");
+#    print(eitlist.getEitDescription());
+#    print("\n when: \n");
+#    print(eitlist.getEitWhen());
+#    print("\n starttime: \n");
+#    print(eitlist.getEitStartTime());
+#    print("\n duration: \n");
+#    print(eitlist.getEitDuration());
     nfoname = eitfile.replace(".eit", ".nfo")
     nfo = """<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>{0}</title>
   <plot>{1}</plot>
 </movie>""".format(eitlist.getEitName(), eitlist.getEitDescription())
-    #print nfo
+    #print(nfo)
     print(nfoname)
 
     with io.open(nfoname,'w',encoding='utf8') as f:
