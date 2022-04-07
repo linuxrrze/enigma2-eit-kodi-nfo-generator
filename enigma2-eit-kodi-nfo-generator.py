@@ -31,100 +31,47 @@
 
 import os
 import struct
-import io
-import chardet
 import sys
 import getopt
-import re
 
 from datetime import datetime
 
-encoding_map = {
-    "1": 'iso-8859-5',
-    "2": 'iso-8859-6',
-    "3": 'iso-8859-7',
-    "4": 'iso-8859-8',
-    "5": 'iso-8859-9',
-    "6": 'iso-8859-10',
-    "7": 'iso-8859-11',
-    "9": 'iso-8859-13',
-    "10": 'iso-8859-14',
-    "11": 'iso-8859-15',
-    "21": 'utf-8'
+# s. Annex A - Table A.3: Character coding tables
+char_coding_table = {
+    1: 'iso-8859-5',
+    2: 'iso-8859-6',
+    3: 'iso-8859-7',
+    4: 'iso-8859-8',
+    5: 'iso-8859-9',
+    6: 'iso-8859-10',
+    7: 'iso-8859-11',
+    9: 'iso-8859-13',
+    10: 'iso-8859-14',
+    11: 'iso-8859-15',
+    12: 'iso-8859-15',
+    13: 'iso-8859-15',
+    14: 'iso-8859-15',
+    16: 'FIXME: Refering to Table A.4',
+    17: 'FIXME: ISO/IEC 10636',
+    18: 'FIXME: KSX1001-2004',
+    19: 'FIXME: GB-2312-1980',
+    20: 'FIXME: Big5',
+    21: 'utf-8',
+    31: 'FIXME: next byte is encoding_type_id'
 }
 
 
-def dump(obj):
-    '''return a printable representation of an object for debugging'''
-    newobj = obj
-    if '__dict__' in dir(obj):
-        newobj = obj.__dict__
-        if ' object at ' in str(obj) and '__type__' not in newobj:
-            newobj['__type__'] = str(obj)
-        for attr in newobj:
-            newobj[attr] = dump(newobj[attr])
-    return newobj
-
-# from Components.config import config
-# from Components.Language import language
-# from EMCTasker import print
-# from IsoFileSupport import IsoSupport
-# from MetaSupport import getInfoFile
-
-# def crc32(data):
-#    poly = 0x4c11db7
-#    crc = 0xffffffffL
-#    for byte in data:
-#        for bit in range(7,-1,-1):  # MSB to LSB
-#            z32 = crc>>31    # top bit
-#            crc = crc << 1
-#            if ((byte>>bit)&1) ^ z32:
-#                crc = crc ^ poly
-#            crc = crc & 0xffffffffL
-#    return crc
-
-
-decoding_charSpecHR = {
-    'Ć': '\u0106',
-    'æ': '\u0107',
-    '®': '\u017D',
-    '¾': '\u017E',
-    '©': '\u0160',
-    '¹': '\u0161',
-    'Č': '\u010C',
-    'è': '\u010D',
-    'ð': '\u0111'
-}
-
-decoding_charSpecCZSK = {
-    'Ï'+'C': 'Č', 'Ï'+'E': 'Ě', 'Ï'+'L': 'Ľ',
-    'Ï'+'N': 'Ň', 'Ï'+'R': 'Ř', 'Ï'+'S': 'Š',
-    'Ï'+'T': 'Ť', 'Ï'+'Z': 'Ž', 'Ï'+'c': 'č',
-    'Ï'+'d': 'ď', 'Ï'+'e': 'ě', 'Ï'+'l': 'ľ',
-    'Ï'+'n': 'ň', 'Ï'+'r': 'ř', 'Ï'+'s': 'š',
-    'Ï'+'t': 'ť', 'Ï'+'z': 'ž', 'Ï'+'D': 'Ď',
-    'Â'+'A': 'Á', 'Â'+'E': 'É', 'Â'+'I': 'Í',
-    'Â'+'O': 'Ó', 'Â'+'U': 'Ú', 'Â'+'a': 'á',
-    'Â'+'e': 'é', 'Â'+'i': 'í', 'Â'+'o': 'ó',
-    'Â'+'u': 'ú', 'Â'+'y': 'ý', 'Ã'+'o': 'ô',
-    'Ã'+'O': 'Ô', 'Ê'+'u': 'ů', 'Ê'+'U': 'Ů',
-    'È'+'A': 'Ä', 'È'+'E': 'Ë', 'È'+'I': 'Ï',
-    'È'+'O': 'Ö', 'È'+'U': 'Ü', 'È'+'Y': 'Ÿ',
-    'È'+'a': 'ä', 'È'+'e': 'ë', 'È'+'i': 'ï',
-    'È'+'o': 'ö', 'È'+'u': 'ü', 'È'+'y': 'ÿ'
-}
-
-
-def convertCharSpecHR(text):
-    for i, j in decoding_charSpecHR.items():
-        text = text.replace(i, j)
-    return text
-
-
-def convertCharSpecCZSK(text):
-    for i, j in decoding_charSpecCZSK.items():
-        text = text.replace(i, j)
-    return text
+def decode_byte_string(data):
+    codepage = None
+    string = ""
+    if len(data) > 0:
+        encoding = data[0]
+        if (encoding in char_coding_table):
+            codepage = char_coding_table[encoding]
+            string = bytes(data[1:]).decode(codepage)
+        else:
+            string = str(data)
+    return(string, codepage)
 
 
 def parseMJD(MJD):
@@ -145,34 +92,10 @@ def unBCD(byte):
     return (byte >> 4) * 10 + (byte & 0xf)
 
 
-# from Tools.ISO639 import LanguageCodes
-#  -*- coding: iso-8859-2 -*-
-LanguageCodes = {}
-LanguageCodes["deu"] = LanguageCodes["ger"] = LanguageCodes["de"] = ("German", "Germanic")
-LanguageCodes["fra"] = LanguageCodes["fre"] = LanguageCodes["fr"] = ("French", "Romance")
-
-
-def language_iso639_2to3(alpha2):
-    ret = alpha2
-    if alpha2 in LanguageCodes:
-        language = LanguageCodes[alpha2]
-        for alpha, name in list(LanguageCodes.items()):
-            if name == language:
-                if len(alpha) == 3:
-                    return alpha
-    return ret
-# TEST
-# print(LanguageCodes["sv"])
-# print(language_iso639_2to3("sv"))
-
-
 # Eit File support class
 # Description
 # http://de.wikipedia.org/wiki/Event_Information_Table
 class EitList():
-
-    EIT_SHORT_EVENT_DESCRIPTOR = 0x4d
-    EIT_EXTENDED_EVENT_DESCRIPOR = 0x4e
 
     def __init__(self, path=None):
         self.eit_file = None
@@ -255,8 +178,6 @@ class EitList():
         data = ""
         path = self.eit_file
 
-        lang = language_iso639_2to3("de")
-
         if path and os.path.exists(path):
             mtime = os.path.getmtime(path)
             if self.eit_mtime == mtime:
@@ -264,14 +185,10 @@ class EitList():
                 pass
 
             else:
-                # print("EMC TEST count Eit " + str(path))
-
                 # New path or file has changed
                 self.eit_mtime = mtime
 
                 # Read data from file
-                # OE1.6 with Pyton 2.6
-                # with open(self.eit_file, 'r') as file: lines = file.readlines()
                 f = None
                 try:
                     f = open(path, 'rb')
@@ -308,21 +225,16 @@ class EitList():
                     pos = pos + 12
                     name_event_descriptor = []
                     name_event_descriptor_multi = []
-                    name_event_codepage = None
                     short_event_descriptor = []
                     short_event_descriptor_multi = []
-                    short_event_codepage = None
                     extended_event_descriptor = []
                     extended_event_descriptor_multi = []
-                    extended_event_codepage = None
                     component_descriptor = []
                     content_descriptor = []
                     linkage_descriptor = []
                     parental_rating_descriptor = []
                     pdc_descriptor = []
                     endpos = len(data) - 1
-                    prev1_ISO_639_language_code = "x"
-                    prev2_ISO_639_language_code = "x"
                     while pos < endpos:
                         rec = descriptor_tag = data[pos]
                         descriptor_length = data[pos+1]
@@ -345,58 +257,15 @@ class EitList():
                             name_event_description = ""
 
                             # read 'event_name_char':
-                            # FIXME: First char is unprintable \0x15 - why?
-                            #name_event_description = str(data[pos+6:pos+6+event_name_length])
-                            name_event_description = str(data[pos+7:pos+6+event_name_length])
-                            print("DEBUG: 0x%02x - event_name_char: <'%s'>(%d)'" % (rec, name_event_description, len(name_event_description)))
-                            name_event_description = ""
-                            for i in range(pos+6, pos+6+event_name_length):
-                                if str(data[i]) == "10" or int(str(data[i])) > 31:
-                                    name_event_description += chr(data[i])
-                            print("DEBUG: 0x%02x - event_name_char: '%s'(%d)'" % (rec, name_event_description, len(name_event_description)))
-                            if not name_event_codepage:
-                                try:
-                                    byte1 = str(data[pos+6])
-                                except Exception:
-                                    if byte1 in encoding_map:
-                                        name_event_codepage = encoding_map[byte1]
-                                    else:
-                                        byte1 = ''
-                                if name_event_codepage:
-                                    print("DEBUG: 0x%02x - [META] Found name_event encoding-type: %s" % (rec, name_event_codepage))
-                            short_event_description = ""
-                            if not short_event_codepage:
-                                try:
-                                    byte1 = str(data[pos+7+event_name_length])
-                                except Exception:
-                                    if byte1 in encoding_map:
-                                        name_event_codepage = encoding_map[byte1]
-                                    else:
-                                        byte1 = ''
-                                if short_event_codepage:
-                                    print("DEBUG: 0x%02x - [META] Found short_event encoding-type: %s" % (rec, short_event_codepage))
-                            #for i in range(pos+7+event_name_length, pos+length):
+                            name_event_description, codepage = decode_byte_string(data[pos+6:pos+6+event_name_length])
+                            print("DEBUG: 0x%02x - event_name_char: '%s'(%d, %s)'" % (rec, name_event_description, len(name_event_description), codepage))
 
                             # read 'text_char':
-                            # FIXME: First char is unprintable \0x05 - why?
-                            #name_event_description = str(data[pos+7+event_name_length, pos+7+event_name_length+text_length])
-                            short_event_description = str(data[pos+8+event_name_length:pos+7+event_name_length+text_length])
-                            print("DEBUG: 0x%02x - event_text_char: <'%s'>(%d)'" % (rec, short_event_description, len(short_event_description)))
-                            short_event_description = ""
-                            for i in range(pos+7+event_name_length, pos+7+event_name_length+text_length):
-                                if str(data[i]) == "10" or int(str(data[i])) > 31:
-                                    short_event_description += chr(data[i])
-                            print("DEBUG: 0x%02x - text_char: '%s'(%d)'" % (rec, short_event_description, len(short_event_description)))
-                            if ISO_639_language_code == lang:
-                                short_event_descriptor.append(short_event_description)
-                                name_event_descriptor.append(name_event_description)
-                            if (ISO_639_language_code == prev1_ISO_639_language_code) or (prev1_ISO_639_language_code == "x"):
-                                short_event_descriptor_multi.append(short_event_description)
-                                name_event_descriptor_multi.append(name_event_description)
-                            else:
-                                short_event_descriptor_multi.append("\n\n" + short_event_description)
-                                name_event_descriptor_multi.append(" " + name_event_description)
-                            prev1_ISO_639_language_code = ISO_639_language_code
+                            short_event_description, codepage = decode_byte_string(data[pos+7+event_name_length:pos+7+event_name_length+text_length])
+                            print("DEBUG: 0x%02x - event_text_char: '%s'(%d, %s)'" % (rec, short_event_description, len(short_event_description), codepage))
+
+                            short_event_descriptor.append(short_event_description)
+                            name_event_descriptor.append(name_event_description)
                         # 0x4E = 'extended_event_descriptor'
                         # details s. "6.2.15 Extended event descriptor"
                         elif rec == 0x4E:
@@ -408,38 +277,18 @@ class EitList():
                             text_length = data[pos+7+length_of_items]
                             print("DEBUG: 0x%02x - text_length: (%d)'" % (rec, text_length))
                             extended_event_description = ""
-                            if not extended_event_codepage:
-                                try:
-                                    byte1 = str(data[pos+8])
-                                except Exception:
-                                    if byte1 in encoding_map:
-                                        name_event_codepage = encoding_map[byte1]
-                                    else:
-                                        byte1 = ''
-                                if extended_event_codepage:
-                                    print("DEBUG: %0x02x - [META] Found extended_event encoding-type: %s" % (rec, extended_event_codepage))
-                            # FIXME: First char is unprintable  - why?
-                            #extended_event_description = str(data[pos+8:pos+8+text_length])
-                            extended_event_description = str(data[pos+9:pos+8+text_length])
-                            print("DEBUG: 0x%02x - extended_event_description: <'%s'>(%d)'" % (rec, extended_event_description, len(extended_event_description)))
-                            extended_event_description = ""
-                            for i in range(pos+8, pos+length):
-                                if str(data[i]) == "10" or int(str(data[i])) > 31:
-                                    extended_event_description += chr(data[i])
-                            if ISO_639_language_code == lang:
-                                extended_event_descriptor.append(extended_event_description)
-                            if (ISO_639_language_code == prev2_ISO_639_language_code) or (prev2_ISO_639_language_code == "x"):
-                                extended_event_descriptor_multi.append(extended_event_description)
-                            else:
-                                extended_event_descriptor_multi.append("\n\n" + extended_event_description)
-                            prev2_ISO_639_language_code = ISO_639_language_code
-                        # 0x50 = 'component_descriptor' 
+
+                            extended_event_description, codepage = decode_byte_string(data[pos+8:pos+8+text_length])
+                            print("DEBUG: 0x%02x - extended_event_description: '%s'(%d, %s)'" % (rec, extended_event_description, len(extended_event_description), codepage))
+
+                            extended_event_descriptor.append(extended_event_description)
+                        # 0x50 = 'component_descriptor'
                         # details s. "6.2.8 Component descriptor"
                         elif rec == 0x50:
                             print("DEBUG: 0x%02x - Component descriptor" % rec)
                             stream_content = data[pos+2]
-                            stream_content_ext = stream_content >> 4;
-                            stream_content = stream_content & 0xf;
+                            stream_content_ext = stream_content >> 4
+                            stream_content = stream_content & 0xf
                             print("DEBUG: 0x%02x - stream_content/_ext 0x%01x/0x%01x" % (rec, stream_content, stream_content_ext))
                             component_type = data[pos+3]
                             component_tag = data[pos+4]
@@ -456,8 +305,8 @@ class EitList():
                             print("DEBUG: 0x%02x - Content descriptor" % rec)
                             for i in range(0, descriptor_length >> 1):
                                 content_nibble_level_1 = data[pos+2+i*2]
-                                content_nibble_level_2 = content_nibble_level_1 & 0xf;
-                                content_nibble_level_1 = content_nibble_level_1 >> 4;
+                                content_nibble_level_2 = content_nibble_level_1 & 0xf
+                                content_nibble_level_1 = content_nibble_level_1 >> 4
                                 user_byte = data[pos+2+i*2+1]
                             print("DEBUG: 0x%02x - content_nibble_level_1/2 0x%01x 0x%01x user_byte 0x%02x" % (rec, content_nibble_level_1, content_nibble_level_2, user_byte))
                             content_descriptor.append(data[pos+8:pos+length])
@@ -471,6 +320,7 @@ class EitList():
                             service_id = (data[pos+6] << 8) + data[pos+7]
                             print("DEBUG: 0x%02x - transport/original/service_id 0x%04x 0x%04x 0x%04x" % (rec, transport_stream_id, original_network_id, service_id))
                             linkage_type = data[pos+8]
+                            print("DEBUG: 0x%02x - linkage_type 0x%02x" % (rec, linkage_type))
                             linkage_descriptor.append(data[pos+8:pos+length])
                         # 0x55 = 'parental_rating_descriptor '
                         # details s. "6.2.28 Parental rating descriptor"
@@ -506,59 +356,9 @@ class EitList():
 
                     if not(extended_event_descriptor):
                         extended_event_descriptor = short_event_descriptor
-                        extended_event_codepage = short_event_codepage
 
-                    if name_event_descriptor:
-                        try:
-                            if name_event_codepage:
-                                if name_event_codepage != 'utf-8':
-                                    name_event_descriptor = bytes(name_event_descriptor, 'utf-8').decode(name_event_codepage)
-                            else:
-                                encdata = chardet.detect(bytes(name_event_descriptor, 'utf-8'))
-                                enc = encdata['encoding'].lower()
-                                confidence = str(encdata['confidence'])
-                                print(("DEBUG: [META] Detected name_event encoding-type: " + enc + " (" + confidence + ")"))
-                                if enc != "utf-8":
-                                    name_event_descriptor = bytes(name_event_descriptor, 'utf-8').decode(enc)
-                        except (UnicodeDecodeError, AttributeError) as e:
-                            print(("DEBUG: [META] Exception in readEitFile: " + str(e)))
                     self.eit['name'] = name_event_descriptor
-
-                    if short_event_descriptor:
-                        try:
-                            # if we read this as utf-8 incorrectly change it
-                            if short_event_codepage:
-                                if short_event_codepage != 'utf-8':
-                                    short_event_descriptor = bytes(short_event_descriptor, 'utf-8').decode(short_event_codepage)
-                            else:
-                                encdata = chardet.detect(bytes(short_event_descriptor, 'utf-8'))
-                                enc = encdata['encoding'].lower()
-                                confidence = str(encdata['confidence'])
-                                print(("DEBUG: [META] Detected short_event encoding-type: " + enc + " (" + confidence + ")"))
-                                if enc != "utf-8":
-                                    short_event_descriptor = bytes(short_event_descriptor, 'utf-8').decode(enc)
-                        except (UnicodeDecodeError, AttributeError) as e:
-                            print(("DEBUG: [META] Exception in readEitFile: " + str(e)))
                     self.eit['short_description'] = short_event_descriptor
-
-                    if extended_event_descriptor:
-                        try:
-                            # if we read this as utf-8 incorrectly change it
-                            if extended_event_codepage:
-                                if extended_event_codepage != 'utf-8':
-                                    extended_event_descriptor = bytes(extended_event_descriptor, 'utf-8').decode(extended_event_codepage)
-                            else:
-                                encdata = chardet.detect(bytes(extended_event_descriptor, 'utf-8'))
-                                enc = encdata['encoding'].lower()
-                                confidence = str(encdata['confidence'])
-                                print(("DEBUG: [META] Detected extended_event encoding-type: " + enc + " (" + confidence + ")"))
-                                if enc != "utf-8":
-                                    extended_event_descriptor = bytes(extended_event_descriptor, 'utf-8').decode(enc)
-                        except (UnicodeDecodeError, AttributeError) as e:
-                            print(("DEBUG: [META] Exception in readEitFile: " + str(e)))
-
-                        # This will fix EIT data of RTL group with missing line breaks in extended event description
-                        extended_event_descriptor = re.sub('((?:Moderat(?:ion:|or(?:in){0,1})|Vorsitz: |Jur(?:isten|y): |G(?:\xC3\xA4|a)st(?:e){0,1}: |Mit (?:Staatsanwalt|Richter(?:in){0,1}|den Schadenregulierern) |Julia Leisch).*?[a-z]+)(\'{0,1}[0-9A-Z\'])', r'\1\n\n\2', extended_event_descriptor)
                     self.eit['description'] = extended_event_descriptor
 
                 else:
