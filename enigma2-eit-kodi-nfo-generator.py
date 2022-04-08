@@ -36,6 +36,16 @@ import getopt
 
 from datetime import datetime
 
+descriptor_list = {
+    0x4d : "Short event descriptor",
+    0x4e : "Extended event descriptor",
+    0x50 : "Component descriptor",
+    0x54 : "Content descriptor",
+    0x4a : "Linkage descriptor",
+    0x55 : "Parental rating descriptor",
+    0x69 : "PDC descriptor"
+}
+
 # s. Annex A - Table A.3: Character coding tables
 char_coding_table = {
     1: 'iso-8859-5',
@@ -59,6 +69,13 @@ char_coding_table = {
     21: 'utf-8',
     31: 'FIXME: next byte is encoding_type_id'
 }
+
+
+def decode_char_string(data):
+    string = ""
+    for i in range(0,len(data)):
+        string += chr(data[i])
+    return(string)
 
 
 def decode_byte_string(data):
@@ -238,7 +255,10 @@ class EitList():
                     while pos < endpos:
                         rec = descriptor_tag = data[pos]
                         descriptor_length = data[pos+1]
-                        print("DEBUG: 0x%02x found" % rec)
+                        if rec in descriptor_list:
+                            print("DEBUG: 0x%02x %s" % (rec, descriptor_list[rec]))
+                        else:
+                            print("DEBUG: 0x%02x Unknown descriptor" % rec)
                         print("DEBUG: 0x%02x - descriptor_tag: 0x%02x" % (rec, descriptor_tag))
                         print("DEBUG: 0x%02x - descriptor_length: %2d" % (rec, descriptor_length))
                         if pos + 1 >= endpos:
@@ -247,45 +267,42 @@ class EitList():
                         # 0x4D = 'short_event_descriptor'
                         # details s. "6.2.37 Short event descriptor"
                         if rec == 0x4D:
-                            print("DEBUG: 0x%02x - Short event descriptor" % rec)
-                            ISO_639_language_code = str(data[pos+2:pos+5]).upper()
-                            print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
+                            ISO_639_language_code = decode_char_string(data[pos+2:pos+5])
+                            print("DEBUG: 0x%02x - ISO_639_language_code: '%s'" % (rec, ISO_639_language_code))
                             event_name_length = data[pos+5]
-                            print("DEBUG: 0x%02x - event_name_length: (%d)'" % (rec, event_name_length))
+                            print("DEBUG: 0x%02x - event_name_length: %d" % (rec, event_name_length))
                             text_length = data[pos+6+event_name_length]
-                            print("DEBUG: 0x%02x - text_length: (%d)'" % (rec, text_length))
+                            print("DEBUG: 0x%02x - text_length: %d" % (rec, text_length))
                             name_event_description = ""
 
                             # read 'event_name_char':
                             name_event_description, codepage = decode_byte_string(data[pos+6:pos+6+event_name_length])
-                            print("DEBUG: 0x%02x - event_name_char: '%s'(%d, %s)'" % (rec, name_event_description, len(name_event_description), codepage))
+                            print("DEBUG: 0x%02x - event_name_char: '%s' (%d, %s)" % (rec, name_event_description, len(name_event_description), codepage))
 
                             # read 'text_char':
                             short_event_description, codepage = decode_byte_string(data[pos+7+event_name_length:pos+7+event_name_length+text_length])
-                            print("DEBUG: 0x%02x - event_text_char: '%s'(%d, %s)'" % (rec, short_event_description, len(short_event_description), codepage))
+                            print("DEBUG: 0x%02x - event_text_char: '%s' (%d, %s)" % (rec, short_event_description, len(short_event_description), codepage))
 
                             short_event_descriptor.append(short_event_description)
                             name_event_descriptor.append(name_event_description)
                         # 0x4E = 'extended_event_descriptor'
                         # details s. "6.2.15 Extended event descriptor"
                         elif rec == 0x4E:
-                            print("DEBUG: 0x%02x - Extended event descriptor" % rec)
-                            ISO_639_language_code = str(data[pos+3:pos+6]).upper()
-                            print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
+                            ISO_639_language_code = decode_char_string(data[pos+3:pos+6])
+                            print("DEBUG: 0x%02x - ISO_639_language_code: '%s'" % (rec, ISO_639_language_code))
                             length_of_items = data[pos+6]
-                            print("DEBUG: 0x%02x - length_of_items: (%d)'" % (rec, length_of_items))
+                            print("DEBUG: 0x%02x - length_of_items: %d" % (rec, length_of_items))
                             text_length = data[pos+7+length_of_items]
-                            print("DEBUG: 0x%02x - text_length: (%d)'" % (rec, text_length))
+                            print("DEBUG: 0x%02x - text_length: %d" % (rec, text_length))
                             extended_event_description = ""
 
                             extended_event_description, codepage = decode_byte_string(data[pos+8:pos+8+text_length])
-                            print("DEBUG: 0x%02x - extended_event_description: '%s'(%d, %s)'" % (rec, extended_event_description, len(extended_event_description), codepage))
+                            print("DEBUG: 0x%02x - extended_event_description: '%s' (%d, %s)" % (rec, extended_event_description, len(extended_event_description), codepage))
 
                             extended_event_descriptor.append(extended_event_description)
                         # 0x50 = 'component_descriptor'
                         # details s. "6.2.8 Component descriptor"
                         elif rec == 0x50:
-                            print("DEBUG: 0x%02x - Component descriptor" % rec)
                             stream_content = data[pos+2]
                             stream_content_ext = stream_content >> 4
                             stream_content = stream_content & 0xf
@@ -293,16 +310,14 @@ class EitList():
                             component_type = data[pos+3]
                             component_tag = data[pos+4]
                             print("DEBUG: 0x%02x - component type/tag 0x%02x/0x%02x" % (rec, component_type, component_tag))
-                            ISO_639_language_code = str(data[pos+5:pos+8]).upper()
-                            print("DEBUG: 0x%02x - ISO_639_language_code: (%s)'" % (rec, ISO_639_language_code))
-                            print("DEBUG: 0x%02x - '%s'" % (rec, data[pos+8:pos+length]))
-                            text_char = data[pos+8:pos+length]
-                            print("DEBUG: 0x%02x - text_char: '%s'(%d)'" % (rec, text_char, len(text_char)))
+                            ISO_639_language_code = decode_char_string(data[pos+5:pos+8])
+                            print("DEBUG: 0x%02x - ISO_639_language_code: '%s'" % (rec, ISO_639_language_code))
+                            text_char = decode_char_string(data[pos+8:pos+length])
+                            print("DEBUG: 0x%02x - text_char: '%s' (%d)" % (rec, text_char, len(text_char)))
                             component_descriptor.append(data[pos+8:pos+length])
                         # 0x54 = 'content_descriptor '
                         # details s. "6.2.9 Content descriptor"
                         elif rec == 0x54:
-                            print("DEBUG: 0x%02x - Content descriptor" % rec)
                             for i in range(0, descriptor_length >> 1):
                                 content_nibble_level_1 = data[pos+2+i*2]
                                 content_nibble_level_2 = content_nibble_level_1 & 0xf
@@ -313,7 +328,6 @@ class EitList():
                         # 0x4A = 'linkage_descriptor '
                         # details s. "6.2.19 Linkage descriptor"
                         elif rec == 0x4A:
-                            print("DEBUG: 0x%02x - Linkage descriptor" % rec)
                             # FIXME: No test data - maybe low/big endian?
                             transport_stream_id = (data[pos+2] << 8) + data[pos+3]
                             original_network_id = (data[pos+4] << 8) + data[pos+5]
@@ -325,16 +339,13 @@ class EitList():
                         # 0x55 = 'parental_rating_descriptor '
                         # details s. "6.2.28 Parental rating descriptor"
                         elif rec == 0x55:
-                            print("DEBUG: 0x%02x - Parental rating descriptor" % rec)
                             parental_rating_descriptor.append(data[pos+2:pos+length])
                         # 0x69 = 'PDC_descriptor'
                         # details s. "6.2.30 PDC descriptor"
                         elif rec == 0x69:
-                            print("DEBUG: 0x%02x - PDC descriptor" % rec)
                             # FIXME: No test data
                             pdc_descriptor.append(data[pos+2:pos+length])
                         else:
-                            print("DEBUG: 0x%02x - Unknown descriptor" % rec)
                             print(data[pos:pos+length])
                             pass
                         pos += length
