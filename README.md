@@ -8,5 +8,3 @@ Ported to Python 3 from the Python 2 version sourced from: https://gist.github.c
 `python3 enigma2-eit-kodi-nfo-generator.py <dir-name1> <dir-name2> ...`
 
 The script will covert each `*.eit` file it finds in the specified directories.
-# Dependencies
-`pip3 install chardet`
